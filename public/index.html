@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer HTML Live Runner</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background-color: #1e1e1e; }
+        #header { height: 40px; background: #111111; color: #fff; display: flex; align-items: center; padding: 0 20px; font-size: 14px; border-bottom: 1px solid #333; }
+        #container { display: flex; width: 100vw; height: calc(100vh - 40px); }
+        #editor-container { width: 50%; height: 100%; }
+        textarea { width: 100%; height: 100%; background-color: #1e1e1e; color: #f4f4f4; border: none; padding: 15px; font-family: 'Courier New', Courier, monospace; font-size: 16px; resize: none; box-sizing: border-box; outline: none; line-height: 1.5; }
+        #output-container { width: 50%; height: 100%; background-color: #ffffff; border-left: 2px solid #333; }
+        iframe { width: 100%; height: 100%; border: none; background: #fff; }
+    </style>
+</head>
+<body>
+
+    <div id="header">🟢 Live Room (ဆရာနှင့် ကျောင်းသား တပြိုင်နက် ရေးပြီး တန်း Run သည့် စနစ်)</div>
+
+    <div id="container">
+        <div id="editor-container">
+            <textarea id="html-code" spellcheck="false"></textarea>
+        </div>
+        <div id="output-container">
+            <iframe id="output-screen"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const textarea = document.getElementById('html-code');
+        const iframe = document.getElementById('output-screen');
+        
+        // Localtunnel/Ngrok လင့်ခ်များတွင်ပါ အလိုအလျောက် WebSocket ချိတ်ဆက်ပေးမည့် လိပ်စာ
+        const wsProtocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const socket = new WebSocket(wsProtocol + location.host);
+
+        // HTML ကုဒ်များကို ညာဘက်ခြမ်း iframe ထဲတွင် တန်း Run ပေးမည့် Function
+        function runHTML() {
+            const htmlCode = textarea.value;
+            const outputDocument = iframe.contentWindow.document;
+            outputDocument.open();
+            outputDocument.write(htmlCode);
+            outputDocument.close();
+        }
+
+        // ကုဒ်ရေးလိုက်လျှင် ဆာဗာမှတစ်ဆင့် အခြားသူဆီ လှမ်းပို့ခြင်း
+        textarea.addEventListener('input', () => {
+            runHTML();
+            socket.send(JSON.stringify({ type: 'edit', code: textarea.value }));
+        });
+
+        // ဆာဗာမှ ကုဒ်အသစ် ရောက်လာလျှင် လိုက်ပြင်ပြီး တန်း Run ခြင်း
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'init' || data.type === 'update') {
+                const start = textarea.selectionStart; // Cursor နေရာမပျောက်အောင် မှတ်ထားခြင်း
+                const end = textarea.selectionEnd;
+                
+                textarea.value = data.code;
+                runHTML();
+                
+                textarea.setSelectionRange(start, end); // Cursor နေရာ ပြန်ထားခြင်း
+            }
+        };
+    </script>
+</body>
+</html>
