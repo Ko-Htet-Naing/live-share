@@ -6,14 +6,37 @@ const httpNative = require('http');
 const Y = require('yjs');
 
 const app = express();
-
-// ✅ public ဖိုဒါထဲက HTML, CSS, JS ဖိုင်အားလုံးကို Auto-Serve လုပ်ခိုင်းလိုက်တာ ဖြစ်ပါတယ် ဆရာ
 app.use(express.static('public'));
 
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 let yDocs = new Map();
+
+wss.on('connection', (ws) => {
+    ws.on('message', (message) => {
+        try {
+            const data = JSON.parse(message);
+            
+            if (data.type === 'edit') {
+                wss.clients.forEach((client) => {
+                    if (client !== ws && client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify({
+                            type: 'update',
+                            code: data.code
+                        }));
+                    }
+                });
+            }
+        } catch (err) {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(message);
+            }
+        }
+    });
+
+    ws.on('close', () => {});
+});
 
 const SELF_PING_INTERVAL = 14 * 60 * 1000; 
 
@@ -41,5 +64,5 @@ setInterval(() => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`🚀 Server is flying on port ${PORT}`);
+    console.log(`🚀 Live Runner Server with WebSocket & Yjs is flying on port ${PORT}`);
 });
