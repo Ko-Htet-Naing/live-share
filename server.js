@@ -1,56 +1,61 @@
 const express = require('express');
-const path = require('path');
 const http = require('http');
 const WebSocket = require('ws');
+const https = require('https');
+const httpNative = require('http');
+const Y = require('yjs');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-// public folder ကို static host လုပ်ခြင်း
-app.use(express.static(path.join(__dirname, 'public')));
-
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// ဆရာနဲ့ ကျောင်းသားကြား မျှဝေသုံးမည့် ကုဒ် အခြေခံ
-let sharedCode = `<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    h1 { color: crimson; text-align: center; font-family: sans-serif; }
-    p { font-size: 18px; color: #333; text-align: center; }
-  </style>
-</head>
-<body>
+let yDocs = new Map();
 
-  <h1>မင်္ဂလာပါ...</h1>
-  <p>ဆရာရော ကျောင်းသားရော တပြိုင်နက် ရေးပြီး တန်း Run နိုင်ပါပြီ။</p>
-
-</body>
-</html>`;
-
-wss.on('connection', (ws) => {
-    // တစ်ယောက်ယောက် ဝင်လာရင် လက်ရှိ ရေးထားသမျှ ကုဒ်ကို တန်းပို့ပေးခြင်း
-    ws.send(JSON.stringify({ type: 'init', code: sharedCode }));
-
-    ws.on('message', (message) => {
-        try {
-            const data = JSON.parse(message);
-            if (data.type === 'edit') {
-                sharedCode = data.code;
-                // ရေးလိုက်တဲ့ ကုဒ်ကို ကျန်တဲ့သူတွေဆီ real-time လှမ်းဖြန့်ပေးခြင်း
-                wss.clients.forEach((client) => {
-                    if (client !== ws && client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify({ type: 'update', code: sharedCode }));
-                    }
-                });
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    });
+app.get('/', (req, res) => {
+    res.send('Yjs Live Room Server is Active! 🟢');
 });
 
+const SELF_PING_INTERVAL = 14 * 60 * 1000; 
+
+setInterval(() => {
+    const renderUrl = process.env.RENDER_EXTERNAL_URL;
+    
+    if (!renderUrl) {
+        console.log('ℹ️ [Anti-Shutdown] Localhost တွင် စမ်းသပ်နေသဖြင့် Self-Ping ကို ခေတ္တကျော်ခွတ်ထားပါသည်။');
+        return;
+    }
+
+    console.log('💓 [Anti-Shutdown] Self-Ping Active');
+    const client = renderUrl.startsWith('https') ? https : httpNative;
+    
+    client.get(renderUrl, (res) => {
+        console.log(`✅ [Anti-Shutdown] Ping Status: ${res.statusCode}`);
+    }).on('error', (err) => {
+        console.error('❌ [Anti-Shutdown Error]:', err.message);
+    });
+}, SELF_PING_INTERVAL);
+
+const CLEANUP_INTERVAL = 45 * 60 * 1000; 
+
+setInterval(() => {
+    console.log('🛡️ [Render Monitor] Yjs Memory Cleaning Check');
+    try {
+        const totalRooms = yDocs.size;
+        if (totalRooms > 0) {
+            for (let [roomName, doc] of yDocs.entries()) {
+                doc.destroy();
+            }
+            yDocs.clear();
+            console.log(`🧹 [Render Success] Flushed ${totalRooms} Yjs Rooms from RAM.`);
+        } else {
+            console.log('✨ [Render Info] Yjs Server is clear.');
+        }
+    } catch (error) {
+        console.error('❌ [Cleanup Error]:', error);
+    }
+}, CLEANUP_INTERVAL);
+
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Live HTML Running Server at http://localhost:${PORT}`);
+    console.log(`🚀 Live Runner Server with Yjs is flying on port ${PORT}`);
 });

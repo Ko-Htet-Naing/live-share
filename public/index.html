@@ -1,68 +1,465 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Multiplayer HTML Live Runner</title>
-    <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background-color: #1e1e1e; }
-        #header { height: 40px; background: #111111; color: #fff; display: flex; align-items: center; padding: 0 20px; font-size: 14px; border-bottom: 1px solid #333; }
-        #container { display: flex; width: 100vw; height: calc(100vh - 40px); }
-        #editor-container { width: 50%; height: 100%; }
-        textarea { width: 100%; height: 100%; background-color: #1e1e1e; color: #f4f4f4; border: none; padding: 15px; font-family: 'Courier New', Courier, monospace; font-size: 16px; resize: none; box-sizing: border-box; outline: none; line-height: 1.5; }
-        #output-container { width: 50%; height: 100%; background-color: #ffffff; border-left: 2px solid #333; }
-        iframe { width: 100%; height: 100%; border: none; background: #fff; }
-    </style>
-</head>
-<body>
 
-    <div id="header">🟢 Live Room (ဆရာနှင့် ကျောင်းသား တပြိုင်နက် ရေးပြီး တန်း Run သည့် စနစ်)</div>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css"
+    />
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/abbott.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/neo.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/cyberpunk.min.css"
+    />
+    <style>
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: sans-serif;
+        background-color: #1e1e1e;
+      }
+      #header {
+        height: 40px;
+        background: #111111;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        font-size: 14px;
+        border-bottom: 1px solid #333;
+        box-sizing: border-box;
+        gap: 20px;
+      }
+
+      #container {
+        display: flex;
+        width: 100vw;
+        height: calc(100vh - 40px);
+        position: relative;
+      }
+      #editor-container {
+        width: 50%;
+        height: 100%;
+        min-width: 10%;
+        position: relative;
+        background: #181818;
+      }
+
+      .CodeMirror {
+        height: 100% !important;
+        font-family: "Courier New", Courier, monospace;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+
+      .cm-s-abbott.CodeMirror {
+        background: #181818 !important;
+        color: #f4f4f4 !important;
+      }
+      .cm-s-abbott .CodeMirror-gutters {
+        background-color: #181818 !important;
+        border-right: 1px solid #2d2d2d;
+      }
+
+      .cm-s-neo.CodeMirror {
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      .cm-s-neo .CodeMirror-gutters {
+        background-color: #f5f5f5 !important;
+        border-right: 1px solid #e0e0e0;
+      }
+
+      #resizer {
+        width: 8px;
+        cursor: col-resize;
+        background-color: #2d2d2d;
+        border-left: 1px solid #3c3c3c;
+        border-right: 1px solid #3c3c3c;
+        position: relative;
+        z-index: 10;
+        transition: background-color 0.2s;
+      }
+      #resizer:hover,
+      #resizer.active {
+        background-color: #007bff;
+      }
+
+      #output-container {
+        flex: 1;
+        height: 100%;
+        min-width: 10%;
+        background-color: #ffffff;
+        position: relative;
+      }
+      iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: #fff;
+      }
+
+      .iframe-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 5;
+        display: none;
+      }
+
+      .nav-control {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #cccccc;
+        font-size: 13px;
+      }
+      .nav-control i {
+        font-size: 16px;
+        color: #007bff;
+      }
+      .nav-select {
+        background: #252526;
+        color: #fff;
+        border: 1px solid #3c3c3c;
+        padding: 4px 8px;
+        border-radius: 4px;
+        outline: none;
+        cursor: pointer;
+        font-size: 13px;
+        transition: 0.2s;
+      }
+      .nav-select:hover {
+        border-color: #007bff;
+        background: #2d2d2e;
+      }
+
+      #format-btn {
+        margin-left: auto;
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 6px 14px;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: bold;
+        transition: 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      #format-btn:hover {
+        background: #0056b3;
+      }
+    </style>
+
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
+    />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/htmlmixed/htmlmixed.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closetag.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/comment/comment.min.js"></script>
+  </head>
+  <body>
+    <div id="header">
+      <span>🟢 Live Room By Tr.Htet</span>
+
+      <div class="nav-control">
+        <label for="theme-select"><i class="bx bx-palette"></i> Theme:</label>
+        <select id="theme-select" class="nav-select">
+          <option value="abbott" selected>VS Dark Mode</option>
+          <option value="neo">VS Light Mode</option>
+          <option value="dracula">Dracula (Purple)</option>
+          <option value="cyberpunk">Cyberpunk (Neon)</option>
+        </select>
+      </div>
+
+      <div class="nav-control">
+        <label for="line-height-select"
+          ><i class="bx bx-text-v"></i> Line Height:</label
+        >
+        <select id="line-height-select" class="nav-select">
+          <option value="1.2">1.2 (Tight)</option>
+          <option value="1.5" selected>1.5 (Normal)</option>
+          <option value="1.8">1.8 (Spacious)</option>
+          <option value="2.2">2.2 (Wide)</option>
+        </select>
+      </div>
+
+      <button id="format-btn">
+        <i class="bx bx-code-block"></i> Format Code
+      </button>
+    </div>
 
     <div id="container">
-        <div id="editor-container">
-            <textarea id="html-code" spellcheck="false"></textarea>
-        </div>
-        <div id="output-container">
-            <iframe id="output-screen"></iframe>
-        </div>
+      <div id="editor-container">
+        <textarea id="html-code"></textarea>
+      </div>
+      <div id="resizer"></div>
+      <div id="output-container">
+        <div class="iframe-overlay" id="overlay"></div>
+        <iframe id="output-screen"></iframe>
+      </div>
     </div>
 
     <script>
-        const textarea = document.getElementById('html-code');
-        const iframe = document.getElementById('output-screen');
-        
-        // Localtunnel/Ngrok လင့်ခ်များတွင်ပါ အလိုအလျောက် WebSocket ချိတ်ဆက်ပေးမည့် လိပ်စာ
-        const wsProtocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
-        const socket = new WebSocket(wsProtocol + location.host);
+      const iframe = document.getElementById("output-screen");
+      const formatBtn = document.getElementById("format-btn");
+      const resizer = document.getElementById("resizer");
+      const editorContainer = document.getElementById("editor-container");
+      const overlay = document.getElementById("overlay");
+      const lineHeightSelect = document.getElementById("line-height-select");
+      const themeSelect = document.getElementById("theme-select");
 
-        // HTML ကုဒ်များကို ညာဘက်ခြမ်း iframe ထဲတွင် တန်း Run ပေးမည့် Function
-        function runHTML() {
-            const htmlCode = textarea.value;
-            const outputDocument = iframe.contentWindow.document;
-            outputDocument.open();
-            outputDocument.write(htmlCode);
-            outputDocument.close();
+      let editor = null;
+      let socket = null;
+      let isReceivingUpdate = false;
+
+      function runHTML(codeValue) {
+        const outputDocument = iframe.contentWindow.document;
+        outputDocument.open();
+        outputDocument.write(codeValue || "");
+        outputDocument.close();
+      }
+
+      editor = CodeMirror.fromTextArea(document.getElementById("html-code"), {
+        mode: "htmlmixed",
+        theme: "abbott",
+        lineNumbers: true,
+        lineWrapping: true,
+        autoCloseTags: true,
+        spellcheck: false,
+      });
+
+      editor.setValue(`\n\n<h1>Welcome from Live Code Editor</h1>`);
+      runHTML(editor.getValue());
+
+      editor.on("change", () => {
+        const currentCode = editor.getValue();
+        runHTML(currentCode);
+
+        if (
+          !isReceivingUpdate &&
+          socket &&
+          socket.readyState === WebSocket.OPEN
+        ) {
+          socket.send(JSON.stringify({ type: "edit", code: currentCode }));
         }
+      });
 
-        // ကုဒ်ရေးလိုက်လျှင် ဆာဗာမှတစ်ဆင့် အခြားသူဆီ လှမ်းပို့ခြင်း
-        textarea.addEventListener('input', () => {
-            runHTML();
-            socket.send(JSON.stringify({ type: 'edit', code: textarea.value }));
-        });
+      themeSelect.addEventListener("change", (e) => {
+        editor.setOption("theme", e.target.value);
+      });
 
-        // ဆာဗာမှ ကုဒ်အသစ် ရောက်လာလျှင် လိုက်ပြင်ပြီး တန်း Run ခြင်း
-        socket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.type === 'init' || data.type === 'update') {
-                const start = textarea.selectionStart; // Cursor နေရာမပျောက်အောင် မှတ်ထားခြင်း
-                const end = textarea.selectionEnd;
-                
-                textarea.value = data.code;
-                runHTML();
-                
-                textarea.setSelectionRange(start, end); // Cursor နေရာ ပြန်ထားခြင်း
-            }
-        };
-    </script>
+      lineHeightSelect.addEventListener("change", (e) => {
+        const multiplier = e.target.value;
+        const cmElement = document.querySelector(".CodeMirror");
+        if (cmElement) {
+          cmElement.style.lineHeight = multiplier;
+          editor.refresh();
+        }
+      });
+
+      // ✅ [NEW EMBEDDED EMMET LOGIC] Tab နှိပ်လျှင် HTML Tags များကို Auto Expansion လုပ်ပေးမည့် စနစ်
+      editor.on("keydown", (cm, e) => {
+        if (e.key === "Tab") {
+          const cursor = cm.getCursor();
+          const lineContent = cm.getLine(cursor.line);
+          const textBeforeCursor = lineContent.substring(0, cursor.ch);
+
+          // ၁။ Boilerplate '!' စနစ်ကို အရင်စစ်ဆေးခြင်း
+          if (textBeforeCursor.endsWith("!")) {
+            e.preventDefault();
+            const boilerplate = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  
 </body>
+</html>`;
+            cm.replaceRange(
+              boilerplate,
+              { line: cursor.line, ch: cursor.ch - 1 },
+              { line: cursor.line, ch: cursor.ch },
+            );
+            setTimeout(() => {
+              const fullText = cm.getValue();
+              const bodyIndex =
+                fullText.indexOf("<body>") + "<body>\n  ".length;
+              const lines = fullText.substring(0, bodyIndex).split("\n");
+              cm.setCursor({
+                line: lines.length - 1,
+                ch: lines[lines.length - 1].length,
+              });
+              cm.focus();
+            }, 30);
+            return;
+          }
+
+          // ၂။ Dynamic HTML Tag Emmet စနစ် (ဥပမာ- h1, div, p, span)
+          // Cursor ရှေ့က နောက်ဆုံးစာလုံး (Word) ကို Regex ဖြင့် ရှာဖွေခြင်း
+          const match = textBeforeCursor.match(/([\w\-]+)$/);
+          if (match) {
+            const tag = match[1];
+
+            // HTML tag အမှန်အကန် ဖြစ်နိုင်ခြေရှိသော စာလုံးများကိုသာ ပြောင်းလဲရန် စစ်ဆေးခြင်း
+            // (ကိန်းဂဏန်းသတ်သတ် သို့မဟုတ် ရိုးရိုး စာသားအရှည်ကြီးများ မှားယွင်းမပြောင်းလဲစေရန်)
+            const isValidTag = /^[a-zA-Z][a-zA-Z0-9\-]*$/.test(tag);
+
+            if (isValidTag) {
+              e.preventDefault(); // Default Tab Key စနစ်ကို ခေတ္တပိတ်ခြင်း
+
+              const generatedTag = `<${tag}></${tag}>`;
+              const startCh = cursor.ch - tag.length;
+
+              // ရိုက်ထားသော စာလုံးကို ဖျက်ပြီး တဂ်အပွင့်အပိတ်ဖြင့် အစားထိုးခြင်း
+              cm.replaceRange(
+                generatedTag,
+                { line: cursor.line, ch: startCh },
+                { line: cursor.line, ch: cursor.ch },
+              );
+
+              // Cursor ကို တဂ်နှစ်ခုရဲ့ အလယ်တည့်တည့်သို့ ပို့ပေးခြင်း (ဥပမာ- <h1>|</h1>)
+              const newCursorCh = startCh + tag.length + 2;
+              cm.setCursor({ line: cursor.line, ch: newCursorCh });
+              return;
+            }
+          }
+        }
+      });
+
+      // Ctrl + / Comment
+      window.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "/") {
+          e.preventDefault();
+          editor.toggleComment();
+        }
+      });
+
+      // Middle Slide Bar Logic
+      let isDragging = false;
+      resizer.addEventListener("mousedown", (e) => {
+        isDragging = true;
+        resizer.classList.add("active");
+        overlay.style.display = "block";
+      });
+      document.addEventListener("mousemove", (e) => {
+        if (!isDragging) return;
+        const containerWidth = document.getElementById("container").clientWidth;
+        let pointerX = e.clientX;
+        let newWidthPercent = (pointerX / containerWidth) * 100;
+        if (newWidthPercent < 10) newWidthPercent = 10;
+        if (newWidthPercent > 90) newWidthPercent = 90;
+        editorContainer.style.width = `${newWidthPercent}%`;
+        editor.refresh();
+      });
+      document.addEventListener("mouseup", () => {
+        if (isDragging) {
+          isDragging = false;
+          resizer.classList.remove("active");
+          overlay.style.display = "none";
+        }
+      });
+
+      // Touch Support
+      resizer.addEventListener("touchstart", (e) => {
+        isDragging = true;
+        resizer.classList.add("active");
+        overlay.style.display = "block";
+      });
+      document.addEventListener("touchmove", (e) => {
+        if (!isDragging) return;
+        const containerWidth = document.getElementById("container").clientWidth;
+        let touchX = e.touches[0].clientX;
+        let newWidthPercent = (touchX / containerWidth) * 100;
+        if (newWidthPercent < 10) newWidthPercent = 10;
+        if (newWidthPercent > 90) newWidthPercent = 90;
+        editorContainer.style.width = `${newWidthPercent}%`;
+        editor.refresh();
+      });
+      document.addEventListener("touchend", () => {
+        if (isDragging) {
+          isDragging = false;
+          resizer.classList.remove("active");
+          overlay.style.display = "none";
+        }
+      });
+
+      // Safe WebSocket
+      if (location.host) {
+        const wsProtocol = location.protocol === "https:" ? "wss://" : "ws://";
+        socket = new WebSocket(wsProtocol + location.host);
+        socket.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if ((data.type === "init" || data.type === "update") && editor) {
+            isReceivingUpdate = true;
+            const cursor = editor.getCursor();
+            editor.setValue(data.code);
+            runHTML(data.code);
+            editor.setCursor(cursor);
+            isReceivingUpdate = false;
+          }
+        };
+      }
+
+      // Native Auto-Indent Format စနစ်
+      function formatCode() {
+        if (!editor) return;
+        const cursor = editor.getCursor();
+        editor.operation(() => {
+          for (let i = 0; i < editor.lineCount(); i++) {
+            editor.indentLine(i, "smart");
+          }
+        });
+        editor.setCursor(cursor);
+        runHTML(editor.getValue());
+      }
+
+      formatBtn.addEventListener("click", formatCode);
+
+      window.addEventListener("keydown", (e) => {
+        if (
+          (e.ctrlKey || e.metaKey) &&
+          e.shiftKey &&
+          e.key.toLowerCase() === "f"
+        ) {
+          e.preventDefault();
+          formatCode();
+        }
+      });
+    </script>
+  </body>
 </html>
