@@ -4,6 +4,7 @@ const WebSocket = require('ws');
 const https = require('https');
 const httpNative = require('http');
 const Y = require('yjs');
+const path = require('path'); // ✅ ဖိုင်လမ်းကြောင်း သတ်မှတ်ရန် မူရင်း Module
 
 const app = express();
 const server = http.createServer(app);
@@ -11,8 +12,9 @@ const wss = new WebSocket.Server({ server });
 
 let yDocs = new Map();
 
+// ✅ ဆရာ့ URL ကို ခေါ်လိုက်တာနဲ့ index.html ဖိုင်ကို တိုက်ရိုက် ဆွဲပြမည့် အပိုင်း
 app.get('/', (req, res) => {
-    res.send('Yjs Live Room Server is Active! 🟢');
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 const SELF_PING_INTERVAL = 14 * 60 * 1000; 
